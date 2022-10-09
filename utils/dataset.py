@@ -34,8 +34,8 @@ class BasicSegmentationDataset(Dataset):
     def __init__(
         self, imgs_dir: str, masks_dir: str, scale: float = 1, mask_suffix: str = ""
     ):
-        self.imgs_dir = "/Users/se_park/Downloads/CODIPAI/PA/data/imgs"
-        self.masks_dir = "/Users/se_park/Downloads/CODIPAI/PA/data/masks"
+        self.imgs_dir = imgs_dir
+        self.masks_dir = masks_dir
         self.scale = scale
         self.mask_suffix = mask_suffix
         assert 0 < scale <= 1, "Scale must be between 0 and 1"
