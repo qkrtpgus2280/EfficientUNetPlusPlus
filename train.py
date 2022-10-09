@@ -348,17 +348,25 @@ if __name__ == "__main__":
     # Faster convolutions, but more memory usage
     # cudnn.benchmark = True
 
-    training_set = CODIPAISegmentationDataset(train_img_dir, train_mask_dir, scale)
-    training_set.rgb2class_mapping = rgb2cls
-    training_set.gray2class_mapping = gray2class
-    training_set.gray2rgb_mapping = gray2rgb
-    training_set.n_classes = len(rgb2cls)
+    training_set = CODIPAISegmentationDataset(
+        train_img_dir,
+        train_mask_dir,
+        scale,
+        gray2class_mapping=gray2class,
+        gray2rgb_mapping=gray2rgb,
+        rgb2class_mapping=rgb2cls,
+        cls_id=cls_id,
+    )
 
-    validation_set = CODIPAISegmentationDataset(val_img_dir, val_mask_dir, scale)
-    validation_set.rgb2class_mapping = rgb2cls
-    validation_set.gray2class_mapping = gray2class
-    validation_set.gray2rgb_mapping = gray2rgb
-    validation_set.n_classes = len(rgb2cls)
+    validation_set = CODIPAISegmentationDataset(
+        val_img_dir,
+        val_mask_dir,
+        scale,
+        gray2class_mapping=gray2class,
+        gray2rgb_mapping=gray2rgb,
+        rgb2class_mapping=rgb2cls,
+        cls_id=cls_id,
+    )
 
     try:
         train_net(
