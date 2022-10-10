@@ -303,9 +303,9 @@ if __name__ == "__main__":
     with open(mapper, "rb") as map:
         mapper = pickle.load(map)
 
-    cls_id = eval(mapper.loc[0, "cls_id"])
+    rgb2gray = eval(mapper.loc[0, "rgb2gray"])
     class2rgb = eval(mapper.loc[0, "class2rgb"])
-    gray2rgb = eval(mapper.loc[0, "rgb2gray"])
+    cls_id = eval(mapper.loc[0, "cls_id"])
     rgb2cls = eval(mapper.loc[0, "rgb2cls"])
     gray2class = eval(mapper.loc[0, "gray2class"])
 
@@ -326,7 +326,7 @@ if __name__ == "__main__":
     # Instantiate EfficientUNet++ with the specified encoder
     net = smp.EfficientUnetPlusPlus(
         encoder_name=args.encoder,
-        encoder_weights="imagenet",
+        encoder_weights=None,
         in_channels=3,
         classes=n_classes,
     )
@@ -353,8 +353,9 @@ if __name__ == "__main__":
         train_mask_dir,
         scale,
         gray2class_mapping=gray2class,
-        gray2rgb_mapping=gray2rgb,
+        gray2rgb_mapping=rgb2gray,
         rgb2class_mapping=rgb2cls,
+        class2rgb_mapping=class2rgb,
         cls_id=cls_id,
     )
 
@@ -363,8 +364,9 @@ if __name__ == "__main__":
         val_mask_dir,
         scale,
         gray2class_mapping=gray2class,
-        gray2rgb_mapping=gray2rgb,
+        gray2rgb_mapping=rgb2gray,
         rgb2class_mapping=rgb2cls,
+        class2rgb_mapping=class2rgb,
         cls_id=cls_id,
     )
 

@@ -9,7 +9,7 @@ from scipy import sparse
 import logging
 from PIL import Image
 import torch.nn.functional as F
-from augment import *
+from utils.augment import *
 
 r"""
 Defines the `BasicSegmentationDataset` and `CoronaryArterySegmentationDatasets`, which extend the `Dataset` and `BasicSegmentationDataset` \ 
@@ -41,9 +41,9 @@ class BasicSegmentationDataset(Dataset):
         assert 0 < scale <= 1, "Scale must be between 0 and 1"
 
         self.ids = [
-            splitext(file)[0]
-            for file in listdir(self.masks_dir)
-            if not file.startswith(".")
+            splitext(fi)[0]
+            for fi in listdir(self.masks_dir)
+            if not fi.startswith(".")
         ]
         logging.info(f"Creating dataset with {len(self.ids)} examples")
 
@@ -146,6 +146,7 @@ class CODIPAISegmentationDataset(BasicSegmentationDataset):
         gray2class_mapping: dict = {},
         gray2rgb_mapping: dict = {},
         rgb2class_mapping: dict = {},
+        class2rgb_mapping: dict = {},
         cls_id: dict = {},
     ):
         super().__init__(imgs_dir, masks_dir, scale, mask_suffix)
@@ -155,8 +156,8 @@ class CODIPAISegmentationDataset(BasicSegmentationDataset):
         self.gray2class_mapping = gray2class_mapping
         self.gray2rgb_mapping = gray2rgb_mapping
         self.rgb2class_mapping = rgb2class_mapping
+        self.class2rgb_mapping = class2rgb_mapping
         self.cls_id = cls_id
-        self.class2rgb = {v: k for k, v in rgb2class_mapping.items()}
         self.n_classes = len(self.gray2rgb_mapping)
 
     @classmethod
@@ -184,7 +185,7 @@ class CODIPAISegmentationDataset(BasicSegmentationDataset):
         mask = mask_nd.transpose((2, 0, 1))
         mask = mask / 255
         mask = mask * 2
-        mask = np.around(mask)
+        # mask = np.around(mask)
 
         return mask
 
@@ -256,7 +257,7 @@ class CODIPAISegmentationDataset(BasicSegmentationDataset):
         """
         return cls.gray2rgb(Image.fromarray(cls.class2gray(mask).astype(np.uint8)))
 
-    def augment(self, image, mask, label):
+    def augment(self, image, mask):
         """
         Returns a list with the original image and mask and augmented versions of them.
         The number of augmented images and masks is equal to the specified augmentation_ratio.
@@ -266,13 +267,7 @@ class CODIPAISegmentationDataset(BasicSegmentationDataset):
         tf_masks = []
 
         image = self.preprocess(image, self.scale)
-        # mask = self.mask_img2class_mask(mask, self.scale)
-
-        self.onehot2rgb(mask, label)
-        mask = mask.transpose((2, 0, 1))
-        mask = mask / 255
-        mask = mask * 2
-        mask = np.around(mask)
+        mask = self.mask_img2class_mask(mask, self.scale)
 
         image = torch.from_numpy(image).type(torch.FloatTensor)
         mask = torch.from_numpy(mask).type(torch.FloatTensor)
@@ -286,7 +281,7 @@ class CODIPAISegmentationDataset(BasicSegmentationDataset):
         idx = self.cls_id[label]
 
         m = m + [[[0, 0, 0]]]
-        m = np.where(m != 0, self.class2rgb[idx], [0, 0, 0])
+        m = np.where(m != 0, self.class2rgb_mapping[idx], [0, 0, 0])
 
         return m
 
@@ -295,15 +290,28 @@ class CODIPAISegmentationDataset(BasicSegmentationDataset):
         Returns two tensors: an image, of shape 1HW, and the corresponding mask, of shape CHW.
         이미지는 중복되기 때문에 마스크 기준으로 loading..
         """
+        # idx = self.ids[i]
+        # mask_file = glob(join(self.masks_dir, idx + "*"))
+        # file_name = idx.split("+")[0]
+        # patch = mask_file[0].split("+")[-1].replace(".npz", "").split("_")[-1]
+        # label = "_".join(
+        #     mask_file[0].split("+")[-1].replace(".npz", "").split("_")[:-1]
+        # )
+        # img_file = glob(join(self.imgs_dir, file_name + f"*{patch}*"))
+
         idx = self.ids[i]
+
+        img_name = idx.split("+")[0]
+        img_idx  = idx.split("_")[-1]
+
+        img_path = join(self.imgs_dir, f"{img_name}_{img_idx}.npy")
+        img_file = glob(img_path)
+
         mask_file = glob(join(self.masks_dir, idx + "*"))
-        file_name = idx.split("+")[0]
-        patch = mask_file[0].split("+")[-1].replace(".npz", "").split("_")[-1]
         label = "_".join(
             mask_file[0].split("+")[-1].replace(".npz", "").split("_")[:-1]
         )
-        img_file = glob(join(self.imgs_dir, file_name + f"*{patch}*"))
-
+        
         assert (
             len(mask_file) == 1
         ), f"Either no mask or multiple masks found for the ID {idx}: {mask_file}"
@@ -312,12 +320,15 @@ class CODIPAISegmentationDataset(BasicSegmentationDataset):
         ), f"Either no image or multiple images found for the ID {idx}: {img_file}"
 
         image = np.load(img_file[0], allow_pickle=True)
-        image = Image.fromarray(image.astype(np.uint8))
+        image = Image.fromarray(image)
 
-        mask = sparse.load_npz(mask_file[0]).toarray()
-        mask = mask.reshape(300, 300, 1)
-
-        image, mask = self.augment(image, mask, label)
+        mask = sparse.load_npz(mask_file[0])
+        mask = mask.toarray()
+        mask = mask.reshape(512, 512, 1)
+        mask = self.onehot2rgb(mask, label)
+        mask = mask.astype(np.uint8)
+        mask = Image.fromarray(mask)
+        image, mask = self.augment(image, mask)
 
         return {"image": image, "mask": mask}
 
@@ -325,8 +336,8 @@ class CODIPAISegmentationDataset(BasicSegmentationDataset):
 if __name__ == "__main__":
     import pandas as pd
 
-    images = pd.read_pickle("../../images.pickle")
-    mapper = pd.read_pickle("../../mapper.pickle")
+    images = pd.read_pickle("../../CODIPAI/PA/images.pickle")
+    mapper = pd.read_pickle("../../CODIPAI/PA/mapper.pickle")
 
     rgb2gray = eval(mapper.loc[0, "rgb2gray"])
     class2rgb = eval(mapper.loc[0, "class2rgb"])
@@ -335,15 +346,18 @@ if __name__ == "__main__":
     gray2class = eval(mapper.loc[0, "gray2class"])
 
     ddd = CODIPAISegmentationDataset(
-        "../../data/imgs",
-        "../../data/masks",
+        "../../CODIPAI/PA/data/train/imgs",
+        "../../CODIPAI/PA/data/train/masks",
         1,
         gray2class_mapping=gray2class,
         gray2rgb_mapping=rgb2gray,
         rgb2class_mapping=rgb2cls,
+        class2rgb_mapping=class2rgb,
         cls_id=cls_id,
     )
     train_loader = DataLoader(
-        ddd, batch_size=1, shuffle=True, num_workers=4, pin_memory=True
+        ddd, batch_size=8, shuffle=True, num_workers=4, pin_memory=True
     )
-    print(next(iter(train_loader)))
+
+    d = next(iter(train_loader))
+    print(d['image'][0].shape, d['mask'][0].shape)
