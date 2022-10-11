@@ -300,24 +300,38 @@ class CODIPAISegmentationDataset(BasicSegmentationDataset):
         # img_file = glob(join(self.imgs_dir, file_name + f"*{patch}*"))
 
         idx = self.ids[i]
-
-        img_name = idx.split("+")[0]
         img_idx  = idx.split("_")[-1]
+        img_name = idx.split("_")[0]
 
-        img_path = join(self.imgs_dir, f"{img_name}_{img_idx}.npy")
-        img_file = glob(img_path)
+        if "origin" in self.imgs_dir:
+            img_path = join(self.imgs_dir, f"{img_name}_{img_idx}.npy")
+            img_file = glob(img_path)
 
-        mask_file = glob(join(self.masks_dir, idx + "*"))
-        label = "_".join(
-            mask_file[0].split("+")[-1].replace(".npz", "").split("_")[:-1]
-        )
+            mask_file = glob(join(self.masks_dir, idx + "*"))
+            label = "_".join(
+                mask_file[0].split("+")[-1].replace(".npz", "").split("_")[:-1]
+            )
+            
+            assert (
+                len(mask_file) == 1
+            ), f"Either no mask or multiple masks found for the ID {idx}: {mask_file}"
+            assert (
+                len(img_file) == 1
+            ), f"Either no image or multiple images found for the ID {idx}: {img_file}"
         
-        assert (
-            len(mask_file) == 1
-        ), f"Either no mask or multiple masks found for the ID {idx}: {mask_file}"
-        assert (
-            len(img_file) == 1
-        ), f"Either no image or multiple images found for the ID {idx}: {img_file}"
+        else:
+            img_path = join(self.imgs_dir, f"{img_name}_{img_idx}.npy")
+            mask_path = join(self.masks_dir, f"{img_name}_{img_idx}.npz")
+
+            img_file = glob(img_path)
+            mask_file = glob(join(self.masks_dir, f"{idx}.npz"))
+
+            assert (
+                len(mask_file) == 1
+            ), f"Either no mask or multiple masks found for the ID {idx}: {mask_file}"
+            assert (
+                len(img_file) == 1
+            ), f"Either no image or multiple images found for the ID {idx}: {img_file}"
 
         image = np.load(img_file[0], allow_pickle=True)
         image = Image.fromarray(image)
@@ -325,7 +339,22 @@ class CODIPAISegmentationDataset(BasicSegmentationDataset):
         mask = sparse.load_npz(mask_file[0])
         mask = mask.toarray()
         mask = mask.reshape(512, 512, 1)
-        mask = self.onehot2rgb(mask, label)
+
+        if "origin" in self.imgs_dir:
+            mask = self.onehot2rgb(mask, label)
+            
+        else:
+            m = np.zeros((512, 512, 3))
+
+            for i in range(512):
+                for j in range(512):
+                    if mask[i, j] != [0]:
+                        m[i, j] = self.class2rgb_mapping[mask[i, j, 0]]
+                    else:
+                        m[i, j] = [0, 0, 0]
+
+            mask = m.copy()
+
         mask = mask.astype(np.uint8)
         mask = Image.fromarray(mask)
         image, mask = self.augment(image, mask)

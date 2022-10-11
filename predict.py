@@ -70,22 +70,22 @@ def get_args():
     parser.add_argument(
         "--mapper",
         "-ma",
-        required=True,
         metavar="pd.DataFrame",
         help="해당 데이터셋의 레이블에 따른 RGB, 클래스 정보등이 담긴 데이터프레임, get_images_info.py로 부터 얻음",
+        required=True
     )
     parser.add_argument(
         "--img-path",
         "-i",
-        metavar="INPUT",
+        dest="img_path",
         nargs="+",
         help="입력 이미지가 위치한 폴더 경로",
         required=True,
     )
     parser.add_argument(
-        "--output",
+        "--predict-mask-path",
         "-o",
-        metavar="INPUT",
+        dest='mask_path',
         nargs="+",
         help="마스크 예측 파일을 저장할 경로",
         required=True,
@@ -212,8 +212,8 @@ def calc_metrics(name, in_path, net, dataset_class, scale, device):
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
     args = get_args()
-    in_img_path = args.input
-    out_mask_path = args.output
+    in_img_path = args.img_path[0]
+    out_mask_path = args.mask_path[0]
 
     mapper = pickle.load(open(args.mapper, "rb"))
     
@@ -232,6 +232,7 @@ if __name__ == "__main__":
     dataset_class.gray2class_mapping = gray2class
     dataset_class.rgb2class_mapping = rgb2cls
     dataset_class.cls_id = cls_id
+    dataset_class.n_classes = n_classes
 
     net = smp.EfficientUnetPlusPlus(
         encoder_name=args.encoder,
@@ -260,16 +261,16 @@ if __name__ == "__main__":
         weighted_score = torch.FloatTensor(1).zero_()
 
     for i, fn in enumerate(os.listdir(in_img_path)):
-        img = Image.open(os.path.join(in_img_path, fn)).convert(mode="RGB")
+        img = Image.fromarray(np.load(os.path.join(in_img_path, fn)).astype(np.uint8)).convert(mode="RGB")
         mask = predict_img(
             net=net,
             dataset_class=dataset_class,
             full_img=img,
-            scale_factor=args.scale,
+            scale_factor=1,
             device=device,
         )
         result = dataset_class.mask2image(mask)
-        result.save(os.path.join(out_mask_path, f"{fn}.jpg"))
+        result.save(os.path.join(out_mask_path, f"{fn.replace('.npy', '.jpg')}"))
 
         logging.info("Mask saved to {}".format(f"{fn}.jpg"))
 
