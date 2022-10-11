@@ -35,11 +35,27 @@ To help practicioners choose the most adequate model for their clinical needs an
 
 ## 2. Installing the repository
 
+xmltodict로 XML 파싱 해야함 .. `pip install xmltodict` 설치
+
 When installing the repository, do not forget to update the submodule, by running the `git submodule update --init --recursive` command.
 
 ## 3. Using the EfficientUNet++ independently
 
 The EfficientUNet++ was implemented as an extension of the Segmentation Models Pytorch repository, by [Pavel Yakubovskiy](https://github.com/qubvel). Currently, it is a pending pull request. For detailed information on library installation and model usage, visit the [Read The Docs Project Page](https://segmentation-models-pytorch.readthedocs.io/en/latest/) or the [repository's README](https://github.com/jlcsilva/segmentation_models.pytorch/blob/master/README.md). 
+
+
+## 3-1 데이터 배치하기
+
+데이터 구조는 다음과 같아야 한다.
+![데이터구조](./folderstructure_example.png)
+
+
+```bash
+python get_images_info.py --data-img-location ../PA/mask --data-xml-location ../PA/XML
+```
+```bash
+python get_image_batches.py --data-img-location ../PA/mask --data-save-location ../PA/data --img-pd-path ./images.pickle --map-pd-path ./mapper.pickle
+```
 
 ## 4. Training the EfficientUNet++
 
@@ -48,19 +64,16 @@ It was not possible to obtain the necessary clearances to release the full coron
 To train the an EfficientUNet++ model on the coronary artery segmentation toy dataset using the EfficientNetB0 encoder, run:
 
 ```
-  python train.py -d Coronary -enc timm-efficientnet-b0
-```
-
-To train the same model on the DRIVE dataset:
-
-```
-  python train.py -d DRIVE -enc timm-efficientnet-b0
-```
-
-For more details on program arguments, run:
-
-```
-  python train.py -h
+  python train.py \
+    -mp "MAPPER_PATH" \
+    -ti "TRAIN_IMG_PATH (have to same structure...: ..{PATH_TO_TRAIN_IMG}/imgs)" \
+    -tm "TRAIN_MASK_PATH (have to same structure...: ..{PATH_TO_TRAIN_MASK}/masks)" \
+    -vi "VALID_IMG_PATH (have to same structure...: ..{PATH_TO_VALID_IMG}/imgs)"\
+    -vm "VALID_MASK_PATH (have to same structure...: ..{PATH_TO_VALID_MASK}/masks)" \
+    -l LearningRate \
+    -enc "timm-efficientnet-b0" {timm-efficientnet-b0, timm-efficientnet-b1, ..., timm-efficientnet-b7}\
+    -e EPOCH \
+    -b BATCH
 ```
 
 To consult the available encoder architectures, visit the [Read The Docs Project Page](https://segmentation-models-pytorch.readthedocs.io/en/latest/). 
@@ -70,7 +83,12 @@ To consult the available encoder architectures, visit the [Read The Docs Project
 To perform inference, run the following command:
 
 ```
-  python predict.py -d <dataset> -enc <encoder> -i <list of files> -m <path to model>
+  python predict.py \
+    --mapper ../CODIPAI/PA/mapper.pickle \
+    -m "CHECKPOINT_FILE_PATH" \
+    --enc "timm-efficientnet-b0"  {timm-efficientnet-b0, timm-efficientnet-b1, ..., timm-efficientnet-b7}\ \
+    --img-path {PATH_TO_IMG} \
+    --predict-mask-path {PATH_TO_SAVE} \
 ```
 
 where the dataset can be either Coronary or DRIVE.
