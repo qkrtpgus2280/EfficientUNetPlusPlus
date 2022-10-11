@@ -54,7 +54,21 @@ The EfficientUNet++ was implemented as an extension of the Segmentation Models P
 python get_images_info.py --data-img-location ../PA/mask --data-xml-location ../PA/XML
 ```
 ```bash
-python get_image_batches.py --data-img-location ../PA/mask --data-save-location ../PA/data --img-pd-path ./images.pickle --map-pd-path ./mapper.pickle
+
+# 한 마스크 이미지로 클래스 합침
+python get_image_batches.py --id 0 --data-path "./mask" --save-path "./data/onemask/train" --startpoint 0 --endpoint 5
+python get_image_batches.py --id 0 --data-path "./mask" --save-path "./data/onemask/valid" --startpoint 5 --endpoint 7
+python get_image_batches.py --id 0 --data-path "./mask" --save-path "./data/onemask/test"  --startpoint 7 --endpoint 9
+
+# 공백이 있는 마스크는 제외하고 클래스 합친 결과를 저장
+python get_image_batches.py --id 1 --data-path "./mask" --save-path "./data/noempty/train" --startpoint 0 --endpoint 5
+python get_image_batches.py --id 1 --data-path "./mask" --save-path "./data/noempty/valid" --startpoint 5 --endpoint 7
+python get_image_batches.py --id 1 --data-path "./mask" --save-path "./data/noempty/test" --startpoint 7 --endpoint 9
+
+# 클래스 따로 저장
+python get_image_batches.py --id 2 --data-path "./mask" --save-path "./data/origin/train" --startpoint 0 --endpoint 5
+python get_image_batches.py --id 2 --data-path "./mask" --save-path "./data/origin/valid" --startpoint 5 --endpoint 7
+python get_image_batches.py --id 2 --data-path "./mask" --save-path "./data/origin/test"  --startpoint 7 --endpoint 9
 ```
 
 ## 4. Training the EfficientUNet++
